@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FB Page Scheduler</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>📅 Facebook Page Scheduler</h1>
+
+  <section class="card">
+    <h2>1️⃣ Page Setup <span class="hint">(sirf ek baar karo)</span></h2>
+    <form id="settingsForm">
+      <label>Facebook Page ID</label>
+      <input type="text" id="page_id" placeholder="123456789012345">
+
+      <label>Page Access Token</label>
+      <input type="password" id="page_access_token" placeholder="EAAG...">
+      <span class="hint" id="tokenHint"></span>
+
+      <label>Daily Post Time</label>
+      <input type="time" id="post_time" value="18:00">
+
+      <label>Timezone</label>
+      <select id="timezone">
+        <option value="Asia/Kolkata">India (Asia/Kolkata)</option>
+        <option value="UTC">UTC</option>
+      </select>
+
+      <button type="submit">Settings Save Karo</button>
+    </form>
+    <p class="status" id="settingsStatus"></p>
+  </section>
+
+  <section class="card">
+    <h2>2️⃣ Image Upload Karo <span class="hint">(jitni baar chaho)</span></h2>
+    <form id="uploadForm">
+      <label>Image</label>
+      <input type="file" id="image" accept="image/*" required>
+
+      <label>Caption (optional)</label>
+      <textarea id="caption" placeholder="Post ka caption yahan likho..." rows="3"></textarea>
+
+      <button type="submit">Queue Mein Add Karo</button>
+    </form>
+    <p class="status" id="uploadStatus"></p>
+  </section>
+
+  <section class="card">
+    <h2>3️⃣ Queue</h2>
+    <div id="queueList" class="queue-list"></div>
+  </section>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

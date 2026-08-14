@@ -1,0 +1,19 @@
+{
+  "name": "fb-page-scheduler",
+  "version": "1.0.0",
+  "description": "Facebook Page ke liye unlimited daily image post scheduler",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "form-data": "^4.0.0",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0"
+  }
+}
