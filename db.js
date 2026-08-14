@@ -8,9 +8,9 @@ function defaultData() {
     settings: {
       page_id: null,
       page_access_token: null,
-      post_time: '18:00',
+      post_times: ['18:00'],
       timezone: 'Asia/Kolkata',
-      last_posted_date: null,
+      posted_slots: [],
     },
     queue: [],
     nextId: 1,
@@ -23,7 +23,15 @@ function load() {
   }
   const raw = fs.readFileSync(DB_PATH, 'utf-8');
   try {
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    // Purane format se migrate karo agar zaroorat ho
+    if (!Array.isArray(data.settings.post_times)) {
+      data.settings.post_times = data.settings.post_time ? [data.settings.post_time] : ['18:00'];
+    }
+    if (!Array.isArray(data.settings.posted_slots)) {
+      data.settings.posted_slots = [];
+    }
+    return data;
   } catch (e) {
     const fresh = defaultData();
     save(fresh);
