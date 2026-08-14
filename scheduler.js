@@ -24,24 +24,36 @@ function getCurrentHHMMInTZ(timezone) {
   return `${hh}:${mm}`;
 }
 
+function pruneOldSlots(slots, today) {
+  // Sirf pichle 3 din ke slots yaad rakho, purane hata do
+  return slots.filter((s) => {
+    const datePart = s.split('_')[0];
+    return datePart >= today; // aaj se purane hata do (simple heuristic)
+  }).slice(-500);
+}
+
 async function checkAndPost() {
   const data = load();
   const settings = data.settings;
   if (!settings.page_id || !settings.page_access_token) return;
+  if (!settings.post_times || settings.post_times.length === 0) return;
 
   const tz = settings.timezone || 'Asia/Kolkata';
   const currentHHMM = getCurrentHHMMInTZ(tz);
   const today = getTodayInTZ(tz);
+  const slotKey = `${today}_${currentHHMM}`;
 
-  // Sirf set time par hi chalega
-  if (currentHHMM !== settings.post_time) return;
-  // Aaj already post ho chuka hai to skip
-  if (settings.last_posted_date === today) return;
+  // Kya abhi koi scheduled time match ho raha hai?
+  if (!settings.post_times.includes(currentHHMM)) return;
+  // Ye slot aaj already use ho chuka hai to skip (duplicate post na ho)
+  if (settings.posted_slots.includes(slotKey)) return;
 
   const next = data.queue.find((item) => item.status === 'pending');
 
   if (!next) {
-    console.log('Queue khaali hai, aaj post karne ko kuch nahi.');
+    console.log(`[${slotKey}] Queue khaali hai, post karne ko kuch nahi.`);
+    settings.posted_slots.push(slotKey);
+    save(data);
     return;
   }
 
@@ -56,18 +68,20 @@ async function checkAndPost() {
 
     next.status = 'posted';
     next.posted_at = new Date().toISOString();
-    settings.last_posted_date = today;
+    settings.posted_slots.push(slotKey);
+    settings.posted_slots = pruneOldSlots(settings.posted_slots, today);
     save(data);
-    console.log(`Queue item #${next.id} post ho gaya.`);
+    console.log(`[${slotKey}] Queue item #${next.id} post ho gaya.`);
   } catch (err) {
     next.status = 'failed';
+    settings.posted_slots.push(slotKey);
     save(data);
-    console.error('Post fail ho gaya:', err.message);
+    console.error(`[${slotKey}] Post fail ho gaya:`, err.message);
   }
 }
 
 function startScheduler() {
-  // Har minute check karega ki set time hua ya nahi
+  // Har minute check karega ki koi scheduled time match hua ya nahi
   cron.schedule('* * * * *', checkAndPost);
   console.log('Scheduler start ho gaya, har minute check karega.');
 }
