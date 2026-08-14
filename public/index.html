@@ -8,10 +8,10 @@
 </head>
 <body>
 <div class="container">
-  <h1>📅 Facebook Page Scheduler</h1>
+  <h1>馃搮 Facebook Page Scheduler</h1>
 
   <section class="card">
-    <h2>1️⃣ Page Setup <span class="hint">(sirf ek baar karo)</span></h2>
+    <h2>1锔忊儯 Page Setup <span class="hint">(sirf ek baar karo)</span></h2>
     <form id="settingsForm">
       <label>Facebook Page ID</label>
       <input type="text" id="page_id" placeholder="123456789012345">
@@ -20,8 +20,12 @@
       <input type="password" id="page_access_token" placeholder="EAAG...">
       <span class="hint" id="tokenHint"></span>
 
-      <label>Daily Post Time</label>
-      <input type="time" id="post_time" value="18:00">
+      <label>Daily Post Times <span class="hint">(jitne chaho utne add karo)</span></label>
+      <div class="time-add-row">
+        <input type="time" id="newTimeInput" value="18:00">
+        <button type="button" id="addTimeBtn">+ Add Time</button>
+      </div>
+      <div id="timesList" class="times-list"></div>
 
       <label>Timezone</label>
       <select id="timezone">
@@ -35,7 +39,7 @@
   </section>
 
   <section class="card">
-    <h2>2️⃣ Image Upload Karo <span class="hint">(jitni baar chaho)</span></h2>
+    <h2>2锔忊儯 Image Upload Karo <span class="hint">(jitni baar chaho)</span></h2>
     <form id="uploadForm">
       <label>Image</label>
       <input type="file" id="image" accept="image/*" required>
@@ -49,7 +53,7 @@
   </section>
 
   <section class="card">
-    <h2>3️⃣ Queue</h2>
+    <h2>3锔忊儯 Queue</h2>
     <div id="queueList" class="queue-list"></div>
   </section>
 </div>
