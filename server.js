@@ -30,9 +30,8 @@ app.get('/api/settings', (req, res) => {
   const s = data.settings;
   res.json({
     page_id: s.page_id,
-    post_time: s.post_time,
+    post_times: s.post_times,
     timezone: s.timezone,
-    last_posted_date: s.last_posted_date,
     has_token: !!s.page_access_token,
   });
 });
@@ -40,10 +39,12 @@ app.get('/api/settings', (req, res) => {
 // Settings save/update karo
 app.post('/api/settings', (req, res) => {
   const data = load();
-  const { page_id, page_access_token, post_time, timezone } = req.body;
+  const { page_id, page_access_token, post_times, timezone } = req.body;
   if (page_id) data.settings.page_id = page_id;
   if (page_access_token) data.settings.page_access_token = page_access_token;
-  if (post_time) data.settings.post_time = post_time;
+  if (Array.isArray(post_times) && post_times.length > 0) {
+    data.settings.post_times = [...new Set(post_times)].sort();
+  }
   if (timezone) data.settings.timezone = timezone;
   save(data);
   res.json({ ok: true });
