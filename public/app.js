@@ -4,22 +4,63 @@ const settingsStatus = document.getElementById('settingsStatus');
 const uploadStatus = document.getElementById('uploadStatus');
 const queueList = document.getElementById('queueList');
 const tokenHint = document.getElementById('tokenHint');
+const timesList = document.getElementById('timesList');
+const newTimeInput = document.getElementById('newTimeInput');
+const addTimeBtn = document.getElementById('addTimeBtn');
+
+let currentTimes = [];
+
+function renderTimes() {
+  if (currentTimes.length === 0) {
+    timesList.innerHTML = '<div class="empty">Koi time add nahi kiya abhi tak.</div>';
+    return;
+  }
+  timesList.innerHTML = currentTimes
+    .sort()
+    .map(
+      (t) => `
+      <div class="time-chip">
+        <span>${t}</span>
+        <button type="button" class="chip-remove" onclick="removeTime('${t}')">✕</button>
+      </div>`
+    )
+    .join('');
+}
+
+function removeTime(t) {
+  currentTimes = currentTimes.filter((x) => x !== t);
+  renderTimes();
+}
+window.removeTime = removeTime;
+
+addTimeBtn.addEventListener('click', () => {
+  const t = newTimeInput.value;
+  if (t && !currentTimes.includes(t)) {
+    currentTimes.push(t);
+    renderTimes();
+  }
+});
 
 async function loadSettings() {
   const res = await fetch('/api/settings');
   const s = await res.json();
   if (s.page_id) document.getElementById('page_id').value = s.page_id;
-  if (s.post_time) document.getElementById('post_time').value = s.post_time;
   if (s.timezone) document.getElementById('timezone').value = s.timezone;
+  currentTimes = Array.isArray(s.post_times) ? s.post_times : [];
+  renderTimes();
   tokenHint.textContent = s.has_token ? 'Token pehle se saved hai (khaali chhod sakte ho agar change nahi karna).' : '';
 }
 
 settingsForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (currentTimes.length === 0) {
+    settingsStatus.textContent = '❌ Kam se kam ek time add karo.';
+    return;
+  }
   const body = {
     page_id: document.getElementById('page_id').value.trim(),
     page_access_token: document.getElementById('page_access_token').value.trim(),
-    post_time: document.getElementById('post_time').value,
+    post_times: currentTimes,
     timezone: document.getElementById('timezone').value,
   };
   const res = await fetch('/api/settings', {
