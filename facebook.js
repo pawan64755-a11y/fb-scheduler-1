@@ -1,16 +1,17 @@
-const fs = require('fs');
-const FormData = require('form-data');
 const fetch = require('node-fetch');
 
-async function postImageToPage({ pageId, pageAccessToken, filePath, caption }) {
-  // Step 1: Photo ko upload karo lekin abhi publish mat karo
-  const uploadForm = new FormData();
-  uploadForm.append('source', fs.createReadStream(filePath));
-  uploadForm.append('published', 'false');
-  uploadForm.append('access_token', pageAccessToken);
+async function postImageToPage({ pageId, pageAccessToken, imageUrl, caption }) {
+  // Step 1: Photo ko image URL se upload karo, abhi publish mat karo
+  const uploadParams = new URLSearchParams();
+  uploadParams.append('url', imageUrl);
+  uploadParams.append('published', 'false');
+  uploadParams.append('access_token', pageAccessToken);
 
-  const uploadUrl = `https://graph.facebook.com/v19.0/${pageId}/photos`;
-  const uploadRes = await fetch(uploadUrl, { method: 'POST', body: uploadForm });
+  const uploadRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/photos`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: uploadParams,
+  });
   const uploadData = await uploadRes.json();
 
   if (uploadData.error) {
@@ -19,14 +20,13 @@ async function postImageToPage({ pageId, pageAccessToken, filePath, caption }) {
 
   const photoId = uploadData.id;
 
-  // Step 2: Ab is photo ko ek proper Timeline post ke roop mein publish karo
+  // Step 2: Is photo ko ek proper Timeline post ke roop mein publish karo
   const feedParams = new URLSearchParams();
   feedParams.append('message', caption || '');
   feedParams.append('attached_media[0]', JSON.stringify({ media_fbid: photoId }));
   feedParams.append('access_token', pageAccessToken);
 
-  const feedUrl = `https://graph.facebook.com/v19.0/${pageId}/feed`;
-  const feedRes = await fetch(feedUrl, {
+  const feedRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/feed`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: feedParams,

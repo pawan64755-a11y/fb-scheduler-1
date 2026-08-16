@@ -1,50 +1,73 @@
-const fs = require('fs');
-const path = require('path');
+const { MongoClient } = require('mongodb');
 
-// Agar DATA_DIR environment variable set hai (Render persistent disk),
-// to wahan data save hoga, warna normal folder mein
-const DATA_DIR = process.env.DATA_DIR || __dirname;
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+let client;
+let dbInstance;
 
-const DB_PATH = path.join(DATA_DIR, 'data.json');
+async function connect() {
+  if (dbInstance) return dbInstance;
+  client = new MongoClient(process.env.MONGODB_URI);
+  await client.connect();
+  dbInstance = client.db('fbscheduler');
+  return dbInstance;
+}
 
-function defaultData() {
+function defaultSettings() {
   return {
-    settings: {
-      page_id: null,
-      page_access_token: null,
-      post_times: ['18:00'],
-      timezone: 'Asia/Kolkata',
-      posted_slots: [],
-    },
-    queue: [],
-    nextId: 1,
+    _id: 'main',
+    page_id: null,
+    page_access_token: null,
+    post_times: ['18:00'],
+    timezone: 'Asia/Kolkata',
+    posted_slots: [],
   };
 }
 
-function load() {
-  if (!fs.existsSync(DB_PATH)) {
-    save(defaultData());
+async function getSettings() {
+  const database = await connect();
+  let settings = await database.collection('settings').findOne({ _id: 'main' });
+  if (!settings) {
+    settings = defaultSettings();
+    await database.collection('settings').insertOne(settings);
   }
-  const raw = fs.readFileSync(DB_PATH, 'utf-8');
-  try {
-    const data = JSON.parse(raw);
-    if (!Array.isArray(data.settings.post_times)) {
-      data.settings.post_times = data.settings.post_time ? [data.settings.post_time] : ['18:00'];
-    }
-    if (!Array.isArray(data.settings.posted_slots)) {
-      data.settings.posted_slots = [];
-    }
-    return data;
-  } catch (e) {
-    const fresh = defaultData();
-    save(fresh);
-    return fresh;
-  }
+  if (!Array.isArray(settings.post_times)) settings.post_times = ['18:00'];
+  if (!Array.isArray(settings.posted_slots)) settings.posted_slots = [];
+  return settings;
 }
 
-function save(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+async function saveSettings(updates) {
+  const database = await connect();
+  await database.collection('settings').updateOne(
+    { _id: 'main' },
+    { $set: updates },
+    { upsert: true }
+  );
 }
 
-module.exports = { load, save };
+async function getQueue() {
+  const database = await connect();
+  return database.collection('queue').find({}).sort({ id: 1 }).toArray();
+}
+
+async function addQueueItem(item) {
+  const database = await connect();
+  await database.collection('queue').insertOne(item);
+}
+
+async function updateQueueItem(id, updates) {
+  const database = await connect();
+  await database.collection('queue').updateOne({ id }, { $set: updates });
+}
+
+async function deleteQueueItem(id) {
+  const database = await connect();
+  await database.collection('queue').deleteOne({ id });
+}
+
+module.exports = {
+  getSettings,
+  saveSettings,
+  getQueue,
+  addQueueItem,
+  updateQueueItem,
+  deleteQueueItem,
+};

@@ -1,88 +1,87 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { load, save } = require('./db');
+const db = require('./db');
+const { uploadToImgBB } = require('./imgbb');
 const { startScheduler } = require('./scheduler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const DATA_DIR = process.env.DATA_DIR || __dirname;
-const uploadsDir = path.join(DATA_DIR, 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
-const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+// Image ko seedha memory mein rakho, disk par save nahi karna (kyunki ImgBB par jaana hai)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(uploadsDir));
 
-app.get('/api/settings', (req, res) => {
-  const data = load();
-  const s = data.settings;
-  res.json({
-    page_id: s.page_id,
-    post_times: s.post_times,
-    timezone: s.timezone,
-    has_token: !!s.page_access_token,
-  });
-});
-
-app.post('/api/settings', (req, res) => {
-  const data = load();
-  const { page_id, page_access_token, post_times, timezone } = req.body;
-  if (page_id) data.settings.page_id = page_id;
-  if (page_access_token) data.settings.page_access_token = page_access_token;
-  if (Array.isArray(post_times) && post_times.length > 0) {
-    data.settings.post_times = [...new Set(post_times)].sort();
+app.get('/api/settings', async (req, res) => {
+  try {
+    const s = await db.getSettings();
+    res.json({
+      page_id: s.page_id,
+      post_times: s.post_times,
+      timezone: s.timezone,
+      has_token: !!s.page_access_token,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  if (timezone) data.settings.timezone = timezone;
-  save(data);
-  res.json({ ok: true });
 });
 
-app.post('/api/upload', upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Image chahiye' });
-  const data = load();
-  const caption = req.body.caption || '';
-  const id = data.nextId++;
-  data.queue.push({
-    id,
-    filename: req.file.filename,
-    caption,
-    status: 'pending',
-    created_at: new Date().toISOString(),
-    posted_at: null,
-  });
-  save(data);
-  res.json({ ok: true, id });
-});
-
-app.get('/api/queue', (req, res) => {
-  const data = load();
-  res.json([...data.queue].reverse());
-});
-
-app.delete('/api/queue/:id', (req, res) => {
-  const data = load();
-  const id = parseInt(req.params.id, 10);
-  const idx = data.queue.findIndex((q) => q.id === id);
-  if (idx !== -1) {
-    const item = data.queue[idx];
-    const filePath = path.join(uploadsDir, item.filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    data.queue.splice(idx, 1);
-    save(data);
+app.post('/api/settings', async (req, res) => {
+  try {
+    const { page_id, page_access_token, post_times, timezone } = req.body;
+    const updates = {};
+    if (page_id) updates.page_id = page_id;
+    if (page_access_token) updates.page_access_token = page_access_token;
+    if (Array.isArray(post_times) && post_times.length > 0) {
+      updates.post_times = [...new Set(post_times)].sort();
+    }
+    if (timezone) updates.timezone = timezone;
+    await db.saveSettings(updates);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  res.json({ ok: true });
+});
+
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Image chahiye' });
+    const imageUrl = await uploadToImgBB(req.file.buffer);
+    const caption = req.body.caption || '';
+    const item = {
+      id: Date.now(),
+      image_url: imageUrl,
+      caption,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      posted_at: null,
+    };
+    await db.addQueueItem(item);
+    res.json({ ok: true, id: item.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/queue', async (req, res) => {
+  try {
+    const items = await db.getQueue();
+    res.json([...items].reverse());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/queue/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    await db.deleteQueueItem(id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
