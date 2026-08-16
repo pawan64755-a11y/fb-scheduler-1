@@ -8,7 +8,8 @@ const { startScheduler } = require('./scheduler');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const uploadsDir = path.join(__dirname, 'uploads');
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const uploadsDir = path.join(DATA_DIR, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
 const storage = multer.diskStorage({
@@ -24,7 +25,6 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
 
-// Current settings dekho (token nahi bhejta, sirf zaroori info)
 app.get('/api/settings', (req, res) => {
   const data = load();
   const s = data.settings;
@@ -36,7 +36,6 @@ app.get('/api/settings', (req, res) => {
   });
 });
 
-// Settings save/update karo
 app.post('/api/settings', (req, res) => {
   const data = load();
   const { page_id, page_access_token, post_times, timezone } = req.body;
@@ -50,7 +49,6 @@ app.post('/api/settings', (req, res) => {
   res.json({ ok: true });
 });
 
-// Naya image queue mein daalo
 app.post('/api/upload', upload.single('image'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Image chahiye' });
   const data = load();
@@ -68,13 +66,11 @@ app.post('/api/upload', upload.single('image'), (req, res) => {
   res.json({ ok: true, id });
 });
 
-// Poori queue dekho (naya sabse upar)
 app.get('/api/queue', (req, res) => {
   const data = load();
   res.json([...data.queue].reverse());
 });
 
-// Queue se item hatao
 app.delete('/api/queue/:id', (req, res) => {
   const data = load();
   const id = parseInt(req.params.id, 10);
